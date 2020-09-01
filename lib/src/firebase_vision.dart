@@ -16,7 +16,7 @@ enum ModelType { onDevice, cloud }
 enum CameraDirection { front, back, external }
 
 /// Indicates selected camera resolution
-enum ResolutionSetting { low, medium, high }
+enum ResolutionSetting { low, medium, high, fullhd }
 
 const MethodChannel channel =
     MethodChannel('plugins.flutter.io/firebase_livestream_ml_vision');
@@ -24,6 +24,8 @@ const MethodChannel channel =
 /// Returns the resolution preset as a String.
 String serializeResolutionPreset(ResolutionSetting resolutionSetting) {
   switch (resolutionSetting) {
+    case ResolutionSetting.fullhd:
+      return '1080';
     case ResolutionSetting.high:
       return 'high';
     case ResolutionSetting.medium:
