@@ -1,7 +1,9 @@
 package io.flutter.plugins.firebaselivestreammlvision;
 
 import android.graphics.Bitmap;
+import android.media.Image;
 import android.util.Base64;
+import android.util.Log;
 
 import com.google.firebase.ml.vision.common.FirebaseVisionImage;
 
@@ -64,6 +66,11 @@ class ShowTellDetector implements Detector {
         } catch (IOException | JSONException e) {
             e.printStackTrace();
         }
+    }
+
+    @Override
+    public void handleDetection(Image originalImage, FirebaseVisionImage image, EventChannel.EventSink eventSink, AtomicBoolean throttle) {
+        this.handleDetection(image, eventSink, throttle);
     }
 
     @Override

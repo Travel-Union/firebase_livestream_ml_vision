@@ -7,10 +7,11 @@ import android.app.Activity;
 import android.content.Context;
 import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
-import android.graphics.BitmapFactory;
 import android.graphics.ImageFormat;
 import android.graphics.Point;
+import android.graphics.Rect;
 import android.graphics.SurfaceTexture;
+import android.graphics.YuvImage;
 import android.hardware.camera2.CameraAccessException;
 import android.hardware.camera2.CameraCaptureSession;
 import android.hardware.camera2.CameraCharacteristics;
@@ -35,6 +36,8 @@ import androidx.annotation.Nullable;
 import io.flutter.plugin.common.EventChannel;
 import io.flutter.plugin.common.PluginRegistry;
 import io.flutter.view.FlutterView;
+
+import java.io.ByteArrayOutputStream;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -44,6 +47,8 @@ import java.util.HashMap;
 import java.util.List;
 import android.util.SparseArray;
 import android.view.WindowManager;
+
+import com.google.android.gms.common.internal.Preconditions;
 import com.google.firebase.ml.vision.FirebaseVision;
 import com.google.firebase.ml.vision.common.FirebaseVisionImage;
 import com.google.firebase.ml.vision.common.FirebaseVisionImageMetadata;
@@ -52,6 +57,7 @@ import io.flutter.plugin.common.MethodChannel;
 import io.flutter.plugin.common.MethodChannel.MethodCallHandler;
 import io.flutter.plugin.common.MethodChannel.Result;
 import io.flutter.plugin.common.PluginRegistry.Registrar;
+
 import java.io.IOException;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -71,6 +77,8 @@ public class FirebaseLivestreamMlVisionPlugin implements MethodCallHandler {
   private final SparseArray<Detector> detectors = new SparseArray<>();
 
   private Registrar registrar;
+
+  private static byte[] image;
 
   private FirebaseLivestreamMlVisionPlugin(Registrar registrar, FlutterView view) {
     this.registrar = registrar;
@@ -160,6 +168,13 @@ public class FirebaseLivestreamMlVisionPlugin implements MethodCallHandler {
         }
         camera = new Camera(registrar, cameraName, resolutionPreset, result);
         orientationEventListener.enable();
+        break;
+      case "retrieveLastFrame":
+        if(FirebaseLivestreamMlVisionPlugin.image != null) {
+          result.success(FirebaseLivestreamMlVisionPlugin.image);
+        } else {
+          result.error("CAMERA", "Last frame is null", null);
+        }
         break;
       case "ShowTellLabeler#startDetection":
       case "BarcodeDetector#startDetection":
@@ -383,6 +398,59 @@ public class FirebaseLivestreamMlVisionPlugin implements MethodCallHandler {
       }
     }
 
+
+    private byte[] fromMediaImage(@NonNull Image var0, int var1) {
+      Preconditions.checkNotNull(var0, "Please provide a valid image");
+      Preconditions.checkArgument(var0.getFormat() == 256 || var0.getFormat() == 35, "Only JPEG and YUV_420_888 are supported now");
+      Image.Plane[] var2 = var0.getPlanes();
+      if (var0.getFormat() == 256) {
+        if (var2 != null && var2.length == 1) {
+          ByteBuffer var3;
+          byte[] var4 = new byte[(var3 = var2[0].getBuffer()).remaining()];
+          var3.get(var4);
+          if (var1 == 0) { //rotation 0
+            return var4;
+          } else {
+            return var4;
+          }
+        } else {
+          throw new IllegalArgumentException("Unexpected image format, JPEG should have exactly 1 image plane");
+        }
+      } else {
+        return NV21toJPEG(
+                YUV_420_888toNV21(var0),
+                var0.getWidth(), var0.getHeight());
+      }
+    }
+
+    private byte[] YUV_420_888toNV21(Image image) {
+      byte[] nv21;
+      ByteBuffer yBuffer = image.getPlanes()[0].getBuffer();
+      ByteBuffer uBuffer = image.getPlanes()[1].getBuffer();
+      ByteBuffer vBuffer = image.getPlanes()[2].getBuffer();
+
+      int ySize = yBuffer.remaining();
+      int uSize = uBuffer.remaining();
+      int vSize = vBuffer.remaining();
+
+      nv21 = new byte[ySize + uSize + vSize];
+
+      //U and V are swapped
+      yBuffer.get(nv21, 0, ySize);
+      vBuffer.get(nv21, ySize, vSize);
+      uBuffer.get(nv21, ySize + vSize, uSize);
+
+      return nv21;
+    }
+
+
+    private byte[] NV21toJPEG(byte[] nv21, int width, int height) {
+      ByteArrayOutputStream out = new ByteArrayOutputStream();
+      YuvImage yuv = new YuvImage(nv21, ImageFormat.NV21, width, height, null);
+      yuv.compressToJpeg(new Rect(0, 0, width, height), 100, out);
+      return out.toByteArray();
+    }
+
     private void registerEventChannel() {
       new EventChannel(
               registrar.messenger(), "plugins.flutter.io/firebase_livestream_ml_vision" + textureEntry.id())
@@ -543,8 +611,12 @@ public class FirebaseLivestreamMlVisionPlugin implements MethodCallHandler {
       FirebaseVisionImage firebaseVisionImage =
               FirebaseVisionImage.fromMediaImage(image, metadata.getRotation());
 
-      currentDetector.handleDetection(
-              firebaseVisionImage, eventSink, shouldThrottle);
+
+      ByteArrayOutputStream out = new ByteArrayOutputStream();
+      firebaseVisionImage.getBitmap().compress(Bitmap.CompressFormat.JPEG, 100, out);
+      FirebaseLivestreamMlVisionPlugin.image = out.toByteArray();
+
+      currentDetector.handleDetection(firebaseVisionImage, eventSink, shouldThrottle);
     }
 
     private final ImageReader.OnImageAvailableListener imageAvailable =
@@ -553,6 +625,7 @@ public class FirebaseLivestreamMlVisionPlugin implements MethodCallHandler {
               public void onImageAvailable(ImageReader reader) {
                 Image image = reader.acquireLatestImage();
                 if (image != null) {
+                    //FirebaseLivestreamMlVisionPlugin.image = fromMediaImage(image, getRotation());
                     processImage(image);
                     image.close();
                 }

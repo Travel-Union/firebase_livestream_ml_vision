@@ -1,5 +1,7 @@
 package io.flutter.plugins.firebaselivestreammlvision;
 
+import android.media.Image;
+
 import com.google.firebase.ml.vision.common.FirebaseVisionImage;
 
 import io.flutter.plugin.common.EventChannel;
@@ -9,6 +11,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 interface Detector {
   void handleDetection(final FirebaseVisionImage image, final EventChannel.EventSink eventSink, AtomicBoolean throttle);
+
+  void handleDetection(final Image originalImage, final FirebaseVisionImage image, final EventChannel.EventSink eventSink, AtomicBoolean throttle);
 
   void close() throws IOException;
 }

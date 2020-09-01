@@ -65,6 +65,14 @@ Future<List<FirebaseCameraDescription>> camerasAvailable() async {
   }
 }
 
+Future<Uint8List> retrieveLastFrame() async {
+  try {
+    return await channel.invokeMethod<Uint8List>('retrieveLastFrame');
+  } on PlatformException catch (e) {
+    throw FirebaseCameraException(e.code, e.message);
+  }
+}
+
 class FirebaseCameraDescription {
   FirebaseCameraDescription(
       {this.name, this.lensDirection, this.sensorOrientation});
@@ -488,7 +496,6 @@ class FirebaseVision extends ValueNotifier<FirebaseCameraValue> {
     }
     await showTellLabeler.close();
   }
-
 }
 
 String _enumToString(dynamic enumValue) {

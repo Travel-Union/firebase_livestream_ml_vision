@@ -1,5 +1,7 @@
 package io.flutter.plugins.firebaselivestreammlvision;
 
+import android.media.Image;
+
 import androidx.annotation.NonNull;
 import com.google.android.gms.tasks.OnFailureListener;
 import com.google.android.gms.tasks.OnSuccessListener;
@@ -67,6 +69,11 @@ class ImageLabeler implements Detector {
                 result.error("imageLabelerError", e.getLocalizedMessage(), null);
               }
             });
+  }
+
+  @Override
+  public void handleDetection(Image originalImage, FirebaseVisionImage image, EventChannel.EventSink eventSink, AtomicBoolean throttle) {
+    this.handleDetection(image, eventSink, throttle);
   }
 
   private FirebaseVisionOnDeviceImageLabelerOptions parseOptions(Map<String, Object> optionsData) {
