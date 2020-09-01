@@ -338,6 +338,9 @@ public class FirebaseLivestreamMlVisionPlugin implements MethodCallHandler {
       try {
         int minHeight;
         switch (resolutionPreset) {
+          case "1080":
+            minHeight = 1080;
+            break;
           case "high":
             minHeight = 720;
             break;
@@ -499,6 +502,7 @@ public class FirebaseLivestreamMlVisionPlugin implements MethodCallHandler {
       int screenHeight = swapWH ? screenResolution.x : screenResolution.y;
 
       List<Size> goodEnough = new ArrayList<>();
+      List<Size> sizeList = new ArrayList<>();
       for (Size s : sizes) {
         if (minHeight <= s.getHeight()
                 && s.getWidth() <= screenWidth
@@ -506,12 +510,14 @@ public class FirebaseLivestreamMlVisionPlugin implements MethodCallHandler {
                 && s.getHeight() <= 1080) {
           goodEnough.add(s);
         }
+        sizeList.add(s);
       }
 
       Collections.sort(goodEnough, new CompareSizesByArea());
 
       if (goodEnough.isEmpty()) {
-        previewSize = sizes[0];
+        Collections.sort(sizeList, new CompareSizesByArea());
+        previewSize = sizeList.get(0);
       } else {
         float captureSizeRatio = (float) captureSize.getWidth() / captureSize.getHeight();
 
