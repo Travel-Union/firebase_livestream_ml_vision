@@ -1,25 +1,23 @@
 #
-# To learn more about a Podspec see http://guides.cocoapods.org/syntax/podspec.html
+# To learn more about a Podspec see http://guides.cocoapods.org/syntax/podspec.html.
+# Run `pod lib lint firebase_livestream_ml_vision.podspec' to validate before publishing.
 #
 Pod::Spec.new do |s|
   s.name             = 'firebase_livestream_ml_vision'
   s.version          = '0.0.1'
-  s.summary          = 'Flutter plugin for Firebase MLVision with Live Camera'
+  s.summary          = 'A new flutter plugin project.'
   s.description      = <<-DESC
-Flutter plugin for Firebase MLVision with Live Camera
+A new flutter plugin project.
                        DESC
-  s.homepage         = 'https://github.com/rishab2113/firebase_livestream_ml_vision/tree/master'
+  s.homepage         = 'http://example.com'
   s.license          = { :file => '../LICENSE' }
-  s.author           = { 'Rishab Nayak' => 'rishab@bu.edu' }
+  s.author           = { 'Your Company' => 'email@example.com' }
   s.source           = { :path => '.' }
   s.source_files = 'Classes/**/*'
-  s.public_header_files = 'Classes/**/*.h'
   s.dependency 'Flutter'
-  s.dependency 'Firebase/Core'
-  s.dependency 'Firebase/MLCommon'
-  s.dependency 'Firebase/MLVision'
-  s.dependency 'Firebase/MLVisionAutoML'
-  s.ios.deployment_target = '9.0'
-  s.static_framework = true
-end
+  s.platform = :ios, '8.0'
 
+  # Flutter.framework does not contain a i386 slice. Only x86_64 simulators are supported.
+  s.pod_target_xcconfig = { 'DEFINES_MODULE' => 'YES', 'VALID_ARCHS[sdk=iphonesimulator*]' => 'x86_64' }
+  s.swift_version = '5.0'
+end
