@@ -170,7 +170,11 @@ FourCharCode const format = kCVPixelFormatType_32BGRA;
 
 - (void)setCaptureSessionPreset:(NSString *)resolutionPreset {
     int presetIndex;
-    if ([resolutionPreset isEqualToString:@"high"]) {
+    if ([resolutionPreset isEqualToString:@"2160"]) {
+        presetIndex = 0;
+    } else if ([resolutionPreset isEqualToString:@"1080"]) {
+        presetIndex = 1;
+    } else if ([resolutionPreset isEqualToString:@"high"]) {
         presetIndex = 2;
     } else if ([resolutionPreset isEqualToString:@"medium"]) {
         presetIndex = 3;
@@ -357,14 +361,9 @@ static NSMutableDictionary<NSNumber *, id<Detector>> *detectors;
 }
 
 - (void)handleMethodCallAsync:(FlutterMethodCall *)call result:(FlutterResult)result {
-    NSString *modelName = call.arguments[@"model"];
     NSDictionary *options = call.arguments[@"options"];
     NSNumber *handle = call.arguments[@"handle"];
-    if ([@"ModelManager#setupLocalModel" isEqualToString:call.method]) {
-        [SetupLocalModel modelName:modelName result:result];
-    } else if ([@"ModelManager#setupRemoteModel" isEqualToString:call.method]) {
-        [SetupRemoteModel modelName:modelName result:result];
-    } else if ([@"camerasAvailable" isEqualToString:call.method]){
+    if ([@"camerasAvailable" isEqualToString:call.method]){
         AVCaptureDeviceDiscoverySession *discoverySession = [AVCaptureDeviceDiscoverySession
                                                              discoverySessionWithDeviceTypes:@[ AVCaptureDeviceTypeBuiltInWideAngleCamera ]
                                                              mediaType:AVMediaTypeVideo
@@ -427,26 +426,15 @@ static NSMutableDictionary<NSNumber *, id<Detector>> *detectors;
         }
     } else if ([@"BarcodeDetector#startDetection" isEqualToString:call.method] ||
                [@"FaceDetector#startDetection" isEqualToString:call.method] ||
-               [@"ImageLabeler#startDetection" isEqualToString:call.method] ||
-               [@"TextRecognizer#startDetection" isEqualToString:call.method] ||
-               [@"VisionEdgeImageLabeler#startLocalDetection" isEqualToString:call.method] ||
-               [@"VisionEdgeImageLabeler#startRemoteDetection" isEqualToString:call.method]){
+               [@"TextRecognizer#startDetection" isEqualToString:call.method]){
         id<Detector> detector = detectors[handle];
         if (!detector) {
             if ([call.method hasPrefix:@"BarcodeDetector"]) {
                 detector = [[BarcodeDetector alloc] initWithVision:[FIRVision vision] options:options];
             } else if ([call.method hasPrefix:@"FaceDetector"]) {
                 detector = [[FaceDetector alloc] initWithVision:[FIRVision vision] options:options];
-            } else if ([call.method hasPrefix:@"ImageLabeler"]) {
-                detector = [[ImageLabeler alloc] initWithVision:[FIRVision vision] options:options];
             } else if ([call.method hasPrefix:@"TextRecognizer"]) {
                 detector = [[TextRecognizer alloc] initWithVision:[FIRVision vision] options:options];
-            } else if ([call.method isEqualToString:@"VisionEdgeImageLabeler#startLocalDetection"]) {
-                detector = [[LocalVisionEdgeDetector alloc] initWithVision:[FIRVision vision]
-                                                                options:options];
-            } else if ([call.method isEqualToString:@"VisionEdgeImageLabeler#startRemoteDetection"]) {
-                detector = [[RemoteVisionEdgeDetector alloc] initWithVision:[FIRVision vision]
-                                                                options:options];
             }
             [FLTFirebaseLivestreamMlVisionPlugin addDetector:handle detector:detector];
         }
@@ -454,9 +442,7 @@ static NSMutableDictionary<NSNumber *, id<Detector>> *detectors;
         result(nil);
     } else if ([@"BarcodeDetector#close" isEqualToString:call.method] ||
                [@"FaceDetector#close" isEqualToString:call.method] ||
-               [@"ImageLabeler#close" isEqualToString:call.method] ||
-               [@"TextRecognizer#close" isEqualToString:call.method] ||
-               [@"VisionEdgeImageLabeler#close" isEqualToString:call.method]) {
+               [@"TextRecognizer#close" isEqualToString:call.method]) {
         NSNumber *handle = call.arguments[@"handle"];
         [detectors removeObjectForKey:handle];
         _camera.activeDetector = nil;

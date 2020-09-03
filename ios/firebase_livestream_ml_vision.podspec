@@ -19,7 +19,7 @@ Flutter plugin for Firebase MLVision with Live Camera
   s.dependency 'Firebase/MLCommon'
   s.dependency 'Firebase/MLVision'
   s.dependency 'Firebase/MLVisionAutoML'
-  s.ios.deployment_target = '9.0'
+  s.ios.deployment_target = '10.0'
   s.static_framework = true
 end
 

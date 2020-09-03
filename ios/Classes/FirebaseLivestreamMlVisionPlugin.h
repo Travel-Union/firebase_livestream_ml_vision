@@ -25,20 +25,5 @@
 @interface FaceDetector : NSObject <Detector>
 @end
 
-@interface ImageLabeler : NSObject <Detector>
-@end
-
 @interface TextRecognizer : NSObject <Detector>
-@end
-
-@interface LocalVisionEdgeDetector : NSObject <Detector>
-@end
-
-@interface RemoteVisionEdgeDetector : NSObject <Detector>
-@end
-
-@interface SetupLocalModel : NSObject <ModelManager>
-@end
-
-@interface SetupRemoteModel : NSObject <ModelManager>
 @end
