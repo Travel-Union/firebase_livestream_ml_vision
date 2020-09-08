@@ -25,16 +25,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
 public class TextRecognizer implements Detector {
   private final FirebaseVisionTextRecognizer recognizer;
 
-  TextRecognizer(FirebaseVision vision, Map<String, Object> options) {
-    final String modelType = (String) options.get("modelType");
-    if (modelType.equals("onDevice")) {
-      recognizer = vision.getOnDeviceTextRecognizer();
-    } else if (modelType.equals("cloud")) {
-      recognizer = vision.getCloudTextRecognizer();
-    } else {
-      final String message = String.format("No model for type: %s", modelType);
-      throw new IllegalArgumentException(message);
-    }
+  TextRecognizer(FirebaseVision vision) {
+    recognizer = vision.getOnDeviceTextRecognizer();
   }
 
   @Override
@@ -92,7 +84,7 @@ public class TextRecognizer implements Detector {
 
                 visionTextData.put("blocks", allBlockData);
                 Map<String, Object> res = new HashMap<>();
-                res.put("eventType", "detection");
+                res.put("eventType", "textRecognition");
                 res.put("data", visionTextData);
                 throttle.set(false);
                 result.success(res);

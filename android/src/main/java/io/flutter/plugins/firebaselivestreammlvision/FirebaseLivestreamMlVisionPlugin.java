@@ -9,9 +9,7 @@ import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
 import android.graphics.ImageFormat;
 import android.graphics.Point;
-import android.graphics.Rect;
 import android.graphics.SurfaceTexture;
-import android.graphics.YuvImage;
 import android.hardware.camera2.CameraAccessException;
 import android.hardware.camera2.CameraCaptureSession;
 import android.hardware.camera2.CameraCharacteristics;
@@ -38,17 +36,14 @@ import io.flutter.plugin.common.PluginRegistry;
 import io.flutter.view.FlutterView;
 
 import java.io.ByteArrayOutputStream;
-import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
-import android.util.SparseArray;
 import android.view.WindowManager;
 
-import com.google.android.gms.common.internal.Preconditions;
 import com.google.firebase.ml.vision.FirebaseVision;
 import com.google.firebase.ml.vision.common.FirebaseVisionImage;
 import com.google.firebase.ml.vision.common.FirebaseVisionImageMetadata;
@@ -73,8 +68,6 @@ public class FirebaseLivestreamMlVisionPlugin implements MethodCallHandler {
   private Runnable cameraPermissionContinuation;
   private final OrientationEventListener orientationEventListener;
   private int currentOrientation = ORIENTATION_UNKNOWN;
-
-  private final SparseArray<Detector> detectors = new SparseArray<>();
 
   private Registrar registrar;
 
@@ -109,7 +102,7 @@ public class FirebaseLivestreamMlVisionPlugin implements MethodCallHandler {
     }
 
     final MethodChannel channel =
-        new MethodChannel(registrar.messenger(), "plugins.flutter.io/firebase_livestream_ml_vision");
+        new MethodChannel(registrar.messenger(), "ml_kit_flutter");
 
     cameraManager = (CameraManager) registrar.activity().getSystemService(Context.CAMERA_SERVICE);
 
@@ -118,17 +111,8 @@ public class FirebaseLivestreamMlVisionPlugin implements MethodCallHandler {
 
   @Override
   public void onMethodCall(MethodCall call, Result result) {
-    String modelName = call.argument("model");
-    Map<String, Object> options = call.argument("options");
-    Integer handle = call.argument("handle");
     switch (call.method) {
-      case "ModelManager#setupLocalModel":
-        SetupLocalModel.instance.setup(modelName, result);
-        break;
-      case "ModelManager#setupRemoteModel":
-        SetupRemoteModel.instance.setup(modelName, result);
-        break;
-      case "camerasAvailable":
+      case "availableCameras":
         try {
           String[] cameraNames = cameraManager.getCameraIdList();
           List<Map<String, Object>> cameras = new ArrayList<>();
@@ -136,10 +120,10 @@ public class FirebaseLivestreamMlVisionPlugin implements MethodCallHandler {
             HashMap<String, Object> details = new HashMap<>();
             CameraCharacteristics characteristics =
                     cameraManager.getCameraCharacteristics(cameraName);
-            details.put("name", cameraName);
+            details.put("id", cameraName);
             @SuppressWarnings("ConstantConditions")
             int sensorOrientation = characteristics.get(CameraCharacteristics.SENSOR_ORIENTATION);
-            details.put("sensorOrientation", sensorOrientation);
+            details.put("orientation", sensorOrientation);
 
             int lensFacing = characteristics.get(CameraCharacteristics.LENS_FACING);
             switch (lensFacing) {
@@ -161,8 +145,8 @@ public class FirebaseLivestreamMlVisionPlugin implements MethodCallHandler {
         }
         break;
       case "initialize":
-        String cameraName = call.argument("cameraName");
-        String resolutionPreset = call.argument("resolutionPreset");
+        String cameraName = call.argument("deviceId");
+        String resolutionPreset = call.argument("resolution");
         if (camera != null) {
           camera.close();
         }
@@ -176,57 +160,41 @@ public class FirebaseLivestreamMlVisionPlugin implements MethodCallHandler {
           result.error("CAMERA", "Last frame is null", null);
         }
         break;
-      case "ShowTellLabeler#startDetection":
-      case "BarcodeDetector#startDetection":
-      case "FaceDetector#startDetection":
-      case "ImageLabeler#startDetection":
-      case "TextRecognizer#startDetection":
-      case "VisionEdgeImageLabeler#startLocalDetection":
-      case "VisionEdgeImageLabeler#startRemoteDetection":
-        Detector detector = getDetector(call);
-        if (detector == null) {
+      case "BarcodeDetector#start":
+      case "TextRecognizer#start":
+        Detector detector = null;
+
+        if (camera == null) {
+          result.success(false);
+          return;
+        }
+
+        if (camera.currentDetector == null) {
           switch (call.method) {
-            case "BarcodeDetector#startDetection":
-              detector = new BarcodeDetector(FirebaseVision.getInstance(), options);
+            case "BarcodeDetector#start":
+              detector = new BarcodeDetector(FirebaseVision.getInstance());
               break;
-            case "FaceDetector#startDetection":
-              detector = new FaceDetector(FirebaseVision.getInstance(), options);
-              break;
-            case "ImageLabeler#startDetection":
-              detector = new ImageLabeler(FirebaseVision.getInstance(), options);
-              break;
-            case "TextRecognizer#startDetection":
-              detector = new TextRecognizer(FirebaseVision.getInstance(), options);
-              break;
-            case "VisionEdgeImageLabeler#startLocalDetection":
-              detector = new LocalVisionEdgeDetector(FirebaseVision.getInstance(), options);
-              break;
-            case "VisionEdgeImageLabeler#startRemoteDetection":
-              detector = new RemoteVisionEdgeDetector(FirebaseVision.getInstance(), options);
-              break;
-            case "ShowTellLabeler#startDetection":
-              detector = new ShowTellDetector();
+            case "TextRecognizer#start":
+              detector = new TextRecognizer(FirebaseVision.getInstance());
               break;
           }
-          addDetector(handle, detector);
+          addDetector(detector, result);
         }
-        camera.currentDetector = getDetector(call);
-        result.success(null);
         break;
       case "BarcodeDetector#close":
-      case "FaceDetector#close":
-      case "ImageLabeler#close":
       case "TextRecognizer#close":
-      case "VisionEdgeImageLabeler#close":
-      case "ShowTellLabeler#close":
-        closeDetector(call, result);
+        if(camera == null) {
+          result.success(false);
+        } else {
+          closeDetector(camera.currentDetector, result);
+        }
         break;
       case "dispose":
         if (camera != null) {
           camera.dispose();
         }
         orientationEventListener.disable();
-        result.success(null);
+        result.success(true);
         break;
       default:
         result.notImplemented();
@@ -263,39 +231,24 @@ public class FirebaseLivestreamMlVisionPlugin implements MethodCallHandler {
     }
   }
 
-  private void closeDetector(final MethodCall call, final Result result) {
-    final Detector detector = getDetector(call);
-
-    if (detector == null) {
-      final Integer handle = call.argument("handle");
-      final String message = String.format("Object for handle does not exists: %s", handle);
-      throw new IllegalArgumentException(message);
-    }
-
+  private void closeDetector(final Detector detector, final Result result) {
     try {
       detector.close();
-      result.success(null);
+      camera.currentDetector = null;
+      result.success(true);
     } catch (IOException e) {
-      final String code = String.format("%sIOError", detector.getClass().getSimpleName());
-      result.error(code, e.getLocalizedMessage(), null);
-    } finally {
-      final Integer handle = call.argument("handle");
-      detectors.remove(handle);
+      result.success(false);
     }
   }
 
-  private void addDetector(final int handle, final Detector detector) {
-    if (detectors.get(handle) != null) {
-      final String message = String.format("Object for handle already exists: %s", handle);
-      throw new IllegalArgumentException(message);
+  private void addDetector(final Detector detector, final Result result) {
+    if(detector != null) {
+      camera.currentDetector = detector;
+      result.success(true);
+      return;
     }
 
-    detectors.put(handle, detector);
-  }
-
-  private Detector getDetector(final MethodCall call) {
-    final Integer handle = call.argument("handle");
-    return detectors.get(handle);
+    result.success(false);
   }
 
   private class Camera {
@@ -338,16 +291,17 @@ public class FirebaseLivestreamMlVisionPlugin implements MethodCallHandler {
       try {
         int minHeight;
         switch (resolutionPreset) {
-          case "1080":
+          case "fullhd":
+          case "ultrahd":
             minHeight = 1080;
             break;
-          case "high":
+          case "hd":
             minHeight = 720;
             break;
-          case "medium":
+          case "sd":
             minHeight = 480;
             break;
-          case "low":
+          case "potato":
             minHeight = 240;
             break;
           default:
@@ -402,61 +356,9 @@ public class FirebaseLivestreamMlVisionPlugin implements MethodCallHandler {
     }
 
 
-    private byte[] fromMediaImage(@NonNull Image var0, int var1) {
-      Preconditions.checkNotNull(var0, "Please provide a valid image");
-      Preconditions.checkArgument(var0.getFormat() == 256 || var0.getFormat() == 35, "Only JPEG and YUV_420_888 are supported now");
-      Image.Plane[] var2 = var0.getPlanes();
-      if (var0.getFormat() == 256) {
-        if (var2 != null && var2.length == 1) {
-          ByteBuffer var3;
-          byte[] var4 = new byte[(var3 = var2[0].getBuffer()).remaining()];
-          var3.get(var4);
-          if (var1 == 0) { //rotation 0
-            return var4;
-          } else {
-            return var4;
-          }
-        } else {
-          throw new IllegalArgumentException("Unexpected image format, JPEG should have exactly 1 image plane");
-        }
-      } else {
-        return NV21toJPEG(
-                YUV_420_888toNV21(var0),
-                var0.getWidth(), var0.getHeight());
-      }
-    }
-
-    private byte[] YUV_420_888toNV21(Image image) {
-      byte[] nv21;
-      ByteBuffer yBuffer = image.getPlanes()[0].getBuffer();
-      ByteBuffer uBuffer = image.getPlanes()[1].getBuffer();
-      ByteBuffer vBuffer = image.getPlanes()[2].getBuffer();
-
-      int ySize = yBuffer.remaining();
-      int uSize = uBuffer.remaining();
-      int vSize = vBuffer.remaining();
-
-      nv21 = new byte[ySize + uSize + vSize];
-
-      //U and V are swapped
-      yBuffer.get(nv21, 0, ySize);
-      vBuffer.get(nv21, ySize, vSize);
-      uBuffer.get(nv21, ySize + vSize, uSize);
-
-      return nv21;
-    }
-
-
-    private byte[] NV21toJPEG(byte[] nv21, int width, int height) {
-      ByteArrayOutputStream out = new ByteArrayOutputStream();
-      YuvImage yuv = new YuvImage(nv21, ImageFormat.NV21, width, height, null);
-      yuv.compressToJpeg(new Rect(0, 0, width, height), 100, out);
-      return out.toByteArray();
-    }
-
     private void registerEventChannel() {
       new EventChannel(
-              registrar.messenger(), "plugins.flutter.io/firebase_livestream_ml_vision" + textureEntry.id())
+              registrar.messenger(), "ml_kit_flutter/events")
               .setStreamHandler(
                       new EventChannel.StreamHandler() {
                         @Override
@@ -619,7 +521,7 @@ public class FirebaseLivestreamMlVisionPlugin implements MethodCallHandler {
 
 
       ByteArrayOutputStream out = new ByteArrayOutputStream();
-      firebaseVisionImage.getBitmap().compress(Bitmap.CompressFormat.JPEG, 100, out);
+      firebaseVisionImage.getBitmap().compress(Bitmap.CompressFormat.JPEG, 90, out);
       FirebaseLivestreamMlVisionPlugin.image = out.toByteArray();
 
       currentDetector.handleDetection(firebaseVisionImage, eventSink, shouldThrottle);
@@ -631,7 +533,6 @@ public class FirebaseLivestreamMlVisionPlugin implements MethodCallHandler {
               public void onImageAvailable(ImageReader reader) {
                 Image image = reader.acquireLatestImage();
                 if (image != null) {
-                    //FirebaseLivestreamMlVisionPlugin.image = fromMediaImage(image, getRotation());
                     processImage(image);
                     image.close();
                 }
@@ -666,8 +567,8 @@ public class FirebaseLivestreamMlVisionPlugin implements MethodCallHandler {
                       if (result != null) {
                         Map<String, Object> reply = new HashMap<>();
                         reply.put("textureId", textureEntry.id());
-                        reply.put("previewWidth", previewSize.getWidth());
-                        reply.put("previewHeight", previewSize.getHeight());
+                        reply.put("width", previewSize.getWidth());
+                        reply.put("height", previewSize.getHeight());
                         result.success(reply);
                       }
                     }
