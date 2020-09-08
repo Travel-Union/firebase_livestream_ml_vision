@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:typed_data';
 
 import 'package:firebase_livestream_ml_vision/barcode_detector.dart';
 import 'package:firebase_livestream_ml_vision/text_recognizer.dart';
@@ -92,6 +93,15 @@ class MlKitFlutter extends ValueNotifier<CameraValue> {
           sensorOrientation: camera['orientation'],
         );
       }).toList();
+    } on PlatformException catch (e) {
+      print(e.message);
+      return null;
+    }
+  }
+
+  static Future<Uint8List> get capturePhoto async {
+    try {
+      return await channel.invokeMethod<Uint8List>('retrieveLastFrame');
     } on PlatformException catch (e) {
       print(e.message);
       return null;

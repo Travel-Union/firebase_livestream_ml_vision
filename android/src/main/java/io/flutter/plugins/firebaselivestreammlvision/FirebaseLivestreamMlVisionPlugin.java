@@ -1,10 +1,11 @@
 package io.flutter.plugins.firebaselivestreammlvision;
 
+import static android.content.Context.CAMERA_SERVICE;
+import static android.content.Context.WINDOW_SERVICE;
 import static android.view.OrientationEventListener.ORIENTATION_UNKNOWN;
 
 import android.Manifest;
 import android.app.Activity;
-import android.content.Context;
 import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
 import android.graphics.ImageFormat;
@@ -104,7 +105,7 @@ public class FirebaseLivestreamMlVisionPlugin implements MethodCallHandler {
     final MethodChannel channel =
         new MethodChannel(registrar.messenger(), "ml_kit_flutter");
 
-    cameraManager = (CameraManager) registrar.activity().getSystemService(Context.CAMERA_SERVICE);
+    cameraManager = (CameraManager) registrar.activity().getSystemService(CAMERA_SERVICE);
 
     channel.setMethodCallHandler(new FirebaseLivestreamMlVisionPlugin(registrar, registrar.view()));
   }
@@ -254,10 +255,10 @@ public class FirebaseLivestreamMlVisionPlugin implements MethodCallHandler {
   private class Camera {
     private final SparseIntArray ORIENTATIONS = new SparseIntArray(4);
     {
-      ORIENTATIONS.append(Surface.ROTATION_0, 90);
-      ORIENTATIONS.append(Surface.ROTATION_90, 0);
-      ORIENTATIONS.append(Surface.ROTATION_180, 270);
-      ORIENTATIONS.append(Surface.ROTATION_270, 180);
+      ORIENTATIONS.append(Surface.ROTATION_0, 0);
+      ORIENTATIONS.append(Surface.ROTATION_90, 90);
+      ORIENTATIONS.append(Surface.ROTATION_180, 180);
+      ORIENTATIONS.append(Surface.ROTATION_270, 270);
     }
     private final FlutterView.SurfaceTextureEntry textureEntry;
     private CameraDevice cameraDevice;
@@ -466,7 +467,7 @@ public class FirebaseLivestreamMlVisionPlugin implements MethodCallHandler {
 
     private int getRotation() {
       if (windowManager == null) {
-        windowManager = (WindowManager) activity.getSystemService(Context.WINDOW_SERVICE);
+        windowManager = (WindowManager) activity.getSystemService(WINDOW_SERVICE);
       }
       int degrees = 0;
       int rotation = windowManager.getDefaultDisplay().getRotation();

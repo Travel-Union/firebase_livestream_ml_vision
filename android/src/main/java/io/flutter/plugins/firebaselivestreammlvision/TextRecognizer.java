@@ -130,13 +130,13 @@ public class TextRecognizer implements Detector {
     }
     addTo.put("points", points);
 
-    List<Map<String, Object>> allLanguageData = new ArrayList<>();
+    List<List<String>> allLanguageData = new ArrayList<>();
     for (RecognizedLanguage language : languages) {
-      Map<String, Object> languageData = new HashMap<>();
-      languageData.put("languageCode", language.getLanguageCode());
+      List<String> languageData = new ArrayList<>();
+      languageData.add(language.getLanguageCode());
       allLanguageData.add(languageData);
     }
-    addTo.put("recognizedLanguages", allLanguageData);
+    addTo.put("languages", allLanguageData);
 
     addTo.put("text", text);
   }
