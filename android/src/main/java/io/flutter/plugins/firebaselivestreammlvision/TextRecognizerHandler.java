@@ -1,5 +1,6 @@
 package io.flutter.plugins.firebaselivestreammlvision;
 
+import android.graphics.Rect;
 import android.media.Image;
 
 import androidx.annotation.NonNull;
@@ -8,7 +9,6 @@ import com.google.android.gms.tasks.OnCompleteListener;
 import com.google.android.gms.tasks.OnFailureListener;
 import com.google.android.gms.tasks.OnSuccessListener;
 import com.google.android.gms.tasks.Task;
-import com.google.mlkit.vision.barcode.Barcode;
 import com.google.mlkit.vision.common.InputImage;
 import com.google.mlkit.vision.text.Text;
 import com.google.mlkit.vision.text.TextRecognition;
@@ -44,6 +44,7 @@ public class TextRecognizerHandler implements Handler {
                   Map<String, Object> blockData = new HashMap<>();
                   addData(
                           blockData,
+                          block.getBoundingBox(),
                           block.getRecognizedLanguage(),
                           block.getText());
 
@@ -52,6 +53,7 @@ public class TextRecognizerHandler implements Handler {
                     Map<String, Object> lineData = new HashMap<>();
                     addData(
                             lineData,
+                            line.getBoundingBox(),
                             line.getRecognizedLanguage(),
                             line.getText());
 
@@ -60,6 +62,7 @@ public class TextRecognizerHandler implements Handler {
                       Map<String, Object> elementData = new HashMap<>();
                       addData(
                               elementData,
+                              element.getBoundingBox(),
                               element.getRecognizedLanguage(),
                               element.getText());
 
@@ -99,8 +102,15 @@ public class TextRecognizerHandler implements Handler {
 
   private void addData(
       Map<String, Object> addTo,
+      Rect boundingBox,
       String language,
       String text) {
+    if (boundingBox != null) {
+      addTo.put("left", (double) boundingBox.left);
+      addTo.put("top", (double) boundingBox.top);
+      addTo.put("width", (double) boundingBox.width());
+      addTo.put("height", (double) boundingBox.height());
+    }
 
     List<String> allLanguageData = new ArrayList<>();
     allLanguageData.add(language);

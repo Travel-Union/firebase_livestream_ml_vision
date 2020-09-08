@@ -248,15 +248,14 @@ class AvailableDevice {
 }
 
 class CameraPreview extends StatelessWidget {
-  const CameraPreview(this.controller, this.key);
+  const CameraPreview(this.controller);
 
   final MlKitFlutter controller;
-  final GlobalKey key;
 
   @override
   Widget build(BuildContext context) {
     return controller.value.isInitialized
-        ? Texture(key: key, textureId: controller._textureId)
+        ? Texture(textureId: controller._textureId)
         : Container();
   }
 }
