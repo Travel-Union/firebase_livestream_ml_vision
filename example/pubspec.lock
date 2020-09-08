@@ -127,13 +127,6 @@ packages:
       url: "https://pub.dartlang.org"
     source: hosted
     version: "6.0.0-nullsafety.1"
-  firebase_core:
-    dependency: "direct main"
-    description:
-      name: firebase_core
-      url: "https://pub.dartlang.org"
-    source: hosted
-    version: "0.4.0+8"
   firebase_livestream_ml_vision:
     dependency: "direct main"
     description:
@@ -483,4 +476,3 @@ packages:
     version: "2.1.16"
 sdks:
   dart: ">=2.10.0-4.0.dev <2.10.0"
-  flutter: ">=1.5.0 <2.0.0"

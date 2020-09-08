@@ -1,53 +1,51 @@
 package io.flutter.plugins.firebaselivestreammlvision;
 
-import android.graphics.Point;
-import android.graphics.Rect;
 import android.media.Image;
 
 import androidx.annotation.NonNull;
+
+import com.google.android.gms.tasks.OnCompleteListener;
 import com.google.android.gms.tasks.OnFailureListener;
 import com.google.android.gms.tasks.OnSuccessListener;
-import com.google.firebase.ml.vision.FirebaseVision;
-import com.google.firebase.ml.vision.barcode.FirebaseVisionBarcode;
-import com.google.firebase.ml.vision.barcode.FirebaseVisionBarcodeDetector;
-import com.google.firebase.ml.vision.barcode.FirebaseVisionBarcodeDetectorOptions;
-import com.google.firebase.ml.vision.common.FirebaseVisionImage;
+import com.google.android.gms.tasks.Task;
+import com.google.mlkit.vision.barcode.Barcode;
+import com.google.mlkit.vision.barcode.BarcodeScanner;
+import com.google.mlkit.vision.barcode.BarcodeScanning;
+import com.google.mlkit.vision.common.InputImage;
 
 import io.flutter.plugin.common.EventChannel;
-import io.flutter.plugin.common.MethodChannel;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-class BarcodeDetector implements Detector {
-  private final FirebaseVisionBarcodeDetector detector;
+class BarcodeDetectorHandler implements Handler {
+  private final BarcodeScanner detector;
 
-  BarcodeDetector(FirebaseVision vision) {
-    detector = vision.getVisionBarcodeDetector();
+  BarcodeDetectorHandler() {
+    detector = BarcodeScanning.getClient();
   }
 
   @Override
-  public void handleDetection(final FirebaseVisionImage image, final EventChannel.EventSink result, final AtomicBoolean throttle) {
+  public void handleDetection(final InputImage image, final Image mediaImage, final EventChannel.EventSink result, final AtomicBoolean throttle) {
     detector
-        .detectInImage(image)
-        .addOnSuccessListener(
-            new OnSuccessListener<List<FirebaseVisionBarcode>>() {
+        .process(image)
+            .addOnSuccessListener(new OnSuccessListener<List<Barcode>>() {
               @Override
-              public void onSuccess(List<FirebaseVisionBarcode> firebaseVisionBarcodes) {
-                List<Map<String, Object>> barcodes = new ArrayList<>();
+              public void onSuccess(List<Barcode> barcodes) {
+                List<Map<String, Object>> barcodeList = new ArrayList<>();
 
-                for (FirebaseVisionBarcode barcode : firebaseVisionBarcodes) {
+                for (Barcode barcode : barcodes) {
                   Map<String, Object> barcodeMap = new HashMap<>();
 
                   barcodeMap.put("value", barcode.getRawValue());
                   barcodeMap.put("displayValue", barcode.getDisplayValue());
 
-                  barcodes.add(barcodeMap);
+                  barcodeList.add(barcodeMap);
                 }
+
                 Map<String, Object> res = new HashMap<>();
                 res.put("eventType", "barcodeDetection");
                 res.put("data", barcodes);
@@ -62,19 +60,14 @@ class BarcodeDetector implements Detector {
                 throttle.set(false);
                 result.error("barcodeDetectorError", exception.getLocalizedMessage(), null);
               }
+            })
+        .addOnCompleteListener(
+            new OnCompleteListener<List<Barcode>>() {
+              @Override
+              public void onComplete(@NonNull Task<List<Barcode>> task) {
+                mediaImage.close();
+              }
             });
-  }
-
-  @Override
-  public void handleDetection(Image originalImage, FirebaseVisionImage image, EventChannel.EventSink eventSink, AtomicBoolean throttle) {
-    this.handleDetection(image, eventSink, throttle);
-  }
-
-  private FirebaseVisionBarcodeDetectorOptions parseOptions(Map<String, Object> optionsData) {
-    Integer barcodeFormats = (Integer) optionsData.get("barcodeFormats");
-    return new FirebaseVisionBarcodeDetectorOptions.Builder()
-        .setBarcodeFormats(barcodeFormats)
-        .build();
   }
 
   @Override

@@ -62,7 +62,8 @@ dependencies {
     testImplementation 'junit:junit:4.12'
     androidTestImplementation 'androidx.test:runner:1.1.0'
     androidTestImplementation 'androidx.test.espresso:espresso-core:3.1.0'
-    api 'com.google.firebase:firebase-ml-vision-image-label-model:17.0.2'
+    implementation 'com.google.android.gms:play-services-mlkit-text-recognition:16.1.1'
+    implementation 'com.google.android.gms:play-services-mlkit-barcode-scanning:16.1.2'
 }
 
 apply plugin: 'com.google.gms.google-services'

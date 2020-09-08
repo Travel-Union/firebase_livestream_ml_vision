@@ -1,5 +1,6 @@
 package io.flutter.plugins.firebaselivestreammlvision;
 
+import static android.content.Context.CAMERA_SERVICE;
 import static android.view.OrientationEventListener.ORIENTATION_UNKNOWN;
 
 import android.Manifest;
@@ -7,6 +8,7 @@ import android.app.Activity;
 import android.content.Context;
 import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.graphics.ImageFormat;
 import android.graphics.Point;
 import android.graphics.SurfaceTexture;
@@ -36,6 +38,7 @@ import io.flutter.plugin.common.PluginRegistry;
 import io.flutter.view.FlutterView;
 
 import java.io.ByteArrayOutputStream;
+import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -44,9 +47,8 @@ import java.util.HashMap;
 import java.util.List;
 import android.view.WindowManager;
 
-import com.google.firebase.ml.vision.FirebaseVision;
-import com.google.firebase.ml.vision.common.FirebaseVisionImage;
-import com.google.firebase.ml.vision.common.FirebaseVisionImageMetadata;
+import com.google.mlkit.vision.common.InputImage;
+
 import io.flutter.plugin.common.MethodCall;
 import io.flutter.plugin.common.MethodChannel;
 import io.flutter.plugin.common.MethodChannel.MethodCallHandler;
@@ -154,15 +156,15 @@ public class FirebaseLivestreamMlVisionPlugin implements MethodCallHandler {
         orientationEventListener.enable();
         break;
       case "retrieveLastFrame":
-        if(FirebaseLivestreamMlVisionPlugin.image != null) {
-          result.success(FirebaseLivestreamMlVisionPlugin.image);
+        if(camera != null) {
+          camera.takePhoto(result);
         } else {
-          result.error("CAMERA", "Last frame is null", null);
+          result.success(null);
         }
         break;
       case "BarcodeDetector#start":
       case "TextRecognizer#start":
-        Detector detector = null;
+        io.flutter.plugins.firebaselivestreammlvision.Handler detector = null;
 
         if (camera == null) {
           result.success(false);
@@ -172,10 +174,10 @@ public class FirebaseLivestreamMlVisionPlugin implements MethodCallHandler {
         if (camera.currentDetector == null) {
           switch (call.method) {
             case "BarcodeDetector#start":
-              detector = new BarcodeDetector(FirebaseVision.getInstance());
+              detector = new BarcodeDetectorHandler();
               break;
             case "TextRecognizer#start":
-              detector = new TextRecognizer(FirebaseVision.getInstance());
+              detector = new TextRecognizerHandler();
               break;
           }
           addDetector(detector, result);
@@ -231,7 +233,7 @@ public class FirebaseLivestreamMlVisionPlugin implements MethodCallHandler {
     }
   }
 
-  private void closeDetector(final Detector detector, final Result result) {
+  private void closeDetector(final io.flutter.plugins.firebaselivestreammlvision.Handler detector, final Result result) {
     try {
       detector.close();
       camera.currentDetector = null;
@@ -241,7 +243,7 @@ public class FirebaseLivestreamMlVisionPlugin implements MethodCallHandler {
     }
   }
 
-  private void addDetector(final Detector detector, final Result result) {
+  private void addDetector(final io.flutter.plugins.firebaselivestreammlvision.Handler detector, final Result result) {
     if(detector != null) {
       camera.currentDetector = detector;
       result.success(true);
@@ -273,7 +275,7 @@ public class FirebaseLivestreamMlVisionPlugin implements MethodCallHandler {
     private HandlerThread mBackgroundThread;
     private Handler mBackgroundHandler;
     private WindowManager windowManager;
-    private Detector currentDetector;
+    private io.flutter.plugins.firebaselivestreammlvision.Handler currentDetector;
     private Activity activity;
 
     Camera(
@@ -464,80 +466,67 @@ public class FirebaseLivestreamMlVisionPlugin implements MethodCallHandler {
       }
     }
 
-    private int getRotation() {
-      if (windowManager == null) {
-        windowManager = (WindowManager) activity.getSystemService(Context.WINDOW_SERVICE);
-      }
-      int degrees = 0;
-      int rotation = windowManager.getDefaultDisplay().getRotation();
-      switch (rotation) {
-        case Surface.ROTATION_0:
-          degrees = 0;
-          break;
-        case Surface.ROTATION_90:
-          degrees = 90;
-          break;
-        case Surface.ROTATION_180:
-          degrees = 180;
-          break;
-        case Surface.ROTATION_270:
-          degrees = 270;
-          break;
-        default:
-          Log.e("ML", "Bad rotation value: $rotation");
-      }
+    private int getRotationCompensation()
+            throws CameraAccessException {
+      // Get the device's current rotation relative to its "native" orientation.
+      // Then, from the ORIENTATIONS table, look up the angle the image must be
+      // rotated to compensate for the device's rotation.
+      int deviceRotation = activity.getWindowManager().getDefaultDisplay().getRotation();
+      int rotationCompensation = ORIENTATIONS.get(deviceRotation);
 
-      try {
-        int angle;
-        CameraCharacteristics cameraCharacteristics =
-                cameraManager.getCameraCharacteristics(cameraName);
-        Integer orientation = cameraCharacteristics.get(CameraCharacteristics.SENSOR_ORIENTATION);
-        // back-facing
-        angle = (orientation - degrees + 360) % 360;
-        int translatedAngle = angle / 90;
-        return translatedAngle; // this corresponds to the rotation constants
-      } catch (CameraAccessException e) {
-        return 0;
+      // Get the device's sensor orientation.
+      CameraManager cameraManager = (CameraManager) activity.getSystemService(CAMERA_SERVICE);
+      int sensorOrientation = cameraManager
+              .getCameraCharacteristics(cameraName)
+              .get(CameraCharacteristics.SENSOR_ORIENTATION);
+
+      if (isFrontFacing) {
+        rotationCompensation = (sensorOrientation + rotationCompensation) % 360;
+      } else { // back-facing
+        rotationCompensation = (sensorOrientation - rotationCompensation + 360) % 360;
       }
+      return rotationCompensation;
     }
 
     private final AtomicBoolean shouldThrottle = new AtomicBoolean(false);
 
-    private void processImage(Image image) {
+    private void processImage(ImageReader reader) throws CameraAccessException {
       if (eventSink == null || currentDetector == null) return;
       if (shouldThrottle.get()) {
         return;
       }
       shouldThrottle.set(true);
-      FirebaseVisionImageMetadata metadata =
-              new FirebaseVisionImageMetadata.Builder()
-                      .setFormat(FirebaseVisionImageMetadata.IMAGE_FORMAT_NV21)
-                      .setWidth(image.getWidth())
-                      .setHeight(image.getHeight())
-                      .setRotation(getRotation())
-                      .build();
-      FirebaseVisionImage firebaseVisionImage =
-              FirebaseVisionImage.fromMediaImage(image, metadata.getRotation());
 
+      Image image = reader.acquireLatestImage();
 
-      ByteArrayOutputStream out = new ByteArrayOutputStream();
-      firebaseVisionImage.getBitmap().compress(Bitmap.CompressFormat.JPEG, 90, out);
-      FirebaseLivestreamMlVisionPlugin.image = out.toByteArray();
+      InputImage inputImage = InputImage.fromMediaImage(image, getRotationCompensation());
 
-      currentDetector.handleDetection(firebaseVisionImage, eventSink, shouldThrottle);
+      currentDetector.handleDetection(inputImage, image, eventSink, shouldThrottle);
     }
 
     private final ImageReader.OnImageAvailableListener imageAvailable =
      new ImageReader.OnImageAvailableListener() {
               @Override
               public void onImageAvailable(ImageReader reader) {
-                Image image = reader.acquireLatestImage();
-                if (image != null) {
-                    processImage(image);
-                    image.close();
+                if (imageReader != null) {
+                  try {
+                    processImage(imageReader);
+                  } catch (CameraAccessException e) {
+                    e.printStackTrace();
+                  }
                 }
               }
      };
+
+    private final ImageReader.OnImageAvailableListener stillImageAvailable =
+            new ImageReader.OnImageAvailableListener() {
+              @Override
+              public void onImageAvailable(ImageReader reader) {
+                if (imageReader != null) {
+                  Image image = imageReader.acquireLatestImage();
+                }
+              }
+            };
 
     private void open(@Nullable final Result result) {
       if (!hasCameraPermission()) {
@@ -570,6 +559,104 @@ public class FirebaseLivestreamMlVisionPlugin implements MethodCallHandler {
                         reply.put("width", previewSize.getWidth());
                         reply.put("height", previewSize.getHeight());
                         result.success(reply);
+                      }
+                    }
+
+                    @Override
+                    public void onClosed(@NonNull CameraDevice camera) {
+                      if (eventSink != null) {
+                        Map<String, String> event = new HashMap<>();
+                        event.put("eventType", "cameraClosing");
+                        eventSink.success(event);
+                      }
+                      super.onClosed(camera);
+                    }
+
+                    @Override
+                    public void onDisconnected(@NonNull CameraDevice cameraDevice) {
+                      cameraDevice.close();
+                      Camera.this.cameraDevice = null;
+                      sendErrorEvent("The camera was disconnected.");
+                    }
+
+                    @Override
+                    public void onError(@NonNull CameraDevice cameraDevice, int errorCode) {
+                      cameraDevice.close();
+                      Camera.this.cameraDevice = null;
+                      String errorDescription;
+                      switch (errorCode) {
+                        case ERROR_CAMERA_IN_USE:
+                          errorDescription = "The camera device is in use already.";
+                          break;
+                        case ERROR_MAX_CAMERAS_IN_USE:
+                          errorDescription = "Max cameras in use";
+                          break;
+                        case ERROR_CAMERA_DISABLED:
+                          errorDescription =
+                                  "The camera device could not be opened due to a device policy.";
+                          break;
+                        case ERROR_CAMERA_DEVICE:
+                          errorDescription = "The camera device has encountered a fatal error";
+                          break;
+                        case ERROR_CAMERA_SERVICE:
+                          errorDescription = "The camera service has encountered a fatal error.";
+                          break;
+                        default:
+                          errorDescription = "Unknown camera error";
+                      }
+                      sendErrorEvent(errorDescription);
+                    }
+                  },
+                  null);
+        } catch (CameraAccessException e) {
+          if (result != null) result.error("cameraAccess", e.getMessage(), null);
+        }
+      }
+    }
+
+    private void takePhoto(@Nullable final Result result) {
+      if (!hasCameraPermission()) {
+        if (result != null) result.error("cameraPermission", "Camera permission not granted", null);
+      } else {
+        try {
+          close();
+
+          imageReader =
+                  ImageReader.newInstance(
+                          previewSize.getWidth(), previewSize.getHeight(), ImageFormat.JPEG, 1);
+          imageReader.setOnImageAvailableListener(new ImageReader.OnImageAvailableListener() {
+            @Override
+            public void onImageAvailable(ImageReader reader) {
+              if (imageReader != null) {
+                Image image = imageReader.acquireLatestImage();
+
+                ByteBuffer buffer = image.getPlanes()[0].getBuffer();
+                byte[] bytes = new byte[buffer.capacity()];
+                buffer.get(bytes);
+
+                if(result != null) {
+                  result.success(bytes);
+                }
+
+                image.close();
+                close();
+                open(null);
+              }
+            }
+          }, null);
+
+          cameraManager.openCamera(
+                  cameraName,
+                  new CameraDevice.StateCallback() {
+                    @Override
+                    public void onOpened(@NonNull CameraDevice cameraDevice) {
+                      Camera.this.cameraDevice = cameraDevice;
+                      try {
+                        startPreview();
+                      } catch (CameraAccessException e) {
+                        if (result != null) result.error("CameraAccess", e.getMessage(), null);
+                        cameraDevice.close();
+                        Camera.this.cameraDevice = null;
                       }
                     }
 

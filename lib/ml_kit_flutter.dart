@@ -1,8 +1,11 @@
 import 'dart:async';
+import 'dart:typed_data';
+import 'dart:ui';
 
 import 'package:firebase_livestream_ml_vision/barcode_detector.dart';
 import 'package:firebase_livestream_ml_vision/text_recognizer.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 
 class MlKitFlutter extends ValueNotifier<CameraValue> {
@@ -108,6 +111,16 @@ class MlKitFlutter extends ValueNotifier<CameraValue> {
         return LensDirection.ext;
       default:
         return LensDirection.unknown;
+    }
+  }
+
+  static Future<Uint8List> get capturePhoto async {
+    try {
+      return await channel
+          .invokeMethod<Uint8List>('retrieveLastFrame');
+    } on PlatformException catch (e) {
+      print(e.message);
+      return null;
     }
   }
 
@@ -235,14 +248,15 @@ class AvailableDevice {
 }
 
 class CameraPreview extends StatelessWidget {
-  const CameraPreview(this.controller);
+  const CameraPreview(this.controller, this.key);
 
   final MlKitFlutter controller;
+  final GlobalKey key;
 
   @override
   Widget build(BuildContext context) {
     return controller.value.isInitialized
-        ? Texture(textureId: controller._textureId)
+        ? Texture(key: key, textureId: controller._textureId)
         : Container();
   }
 }
