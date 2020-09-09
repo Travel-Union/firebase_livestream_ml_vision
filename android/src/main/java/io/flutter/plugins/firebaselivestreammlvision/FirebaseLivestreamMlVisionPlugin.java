@@ -215,8 +215,7 @@ public class FirebaseLivestreamMlVisionPlugin implements MethodCallHandler {
     @Override
     public int compare(Size lhs, Size rhs) {
       // We cast here to ensure the multiplications won't overflow.
-      return Long.signum(
-              (long) lhs.getWidth() * lhs.getHeight() - (long) rhs.getWidth() * rhs.getHeight());
+      return Long.signum((long) rhs.getWidth() * rhs.getHeight() - (long) lhs.getWidth() * lhs.getHeight());
     }
   }
 
