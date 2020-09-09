@@ -3,7 +3,7 @@ description: Demonstrates how to use the firebase_livestream_ml_vision plugin.
 publish_to: 'none'
 
 environment:
-  sdk: ">=2.1.0 <3.0.0"
+  sdk: ">=2.6.0 <3.0.0"
 
 dependencies:
   flutter:
@@ -14,7 +14,7 @@ dependencies:
   cupertino_icons: ^0.1.2
   firebase_livestream_ml_vision:
     path: ../
-  firebase_core: ^0.4.0
+  firebase_core: ^0.5.0
 
 dev_dependencies:
   flutter_test:

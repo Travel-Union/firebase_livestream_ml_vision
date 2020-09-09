@@ -1,6 +1,7 @@
 import Flutter
 import UIKit
 import AVFoundation
+import VideoToolbox
 
 public class SwiftFirebaseLivestreamMlVisionPlugin: NSObject, FlutterPlugin {
     let textureRegistry: FlutterTextureRegistry
@@ -127,6 +128,16 @@ public class SwiftFirebaseLivestreamMlVisionPlugin: NSObject, FlutterPlugin {
           }
           
           break
+      case "retrieveLastFrame":
+        if(camera?.pixelBuffer != nil) {
+            result(UIImage(pixelBuffer: camera!.pixelBuffer!)?.jpegData(compressionQuality: 1))
+        } else {
+            result(nil)
+        }
+        break
+      case "dispose":
+        camera?.stop()
+        result(true)
       default:
           result(FlutterMethodNotImplemented)
       }
@@ -146,5 +157,18 @@ extension SwiftFirebaseLivestreamMlVisionPlugin: FlutterStreamHandler {
     public func onCancel(withArguments arguments: Any?) -> FlutterError? {
         camera?.eventSink = nil
         return nil
+    }
+}
+
+extension UIImage {
+    public convenience init?(pixelBuffer: CVPixelBuffer) {
+        var cgImage: CGImage?
+        VTCreateCGImageFromCVPixelBuffer(pixelBuffer, options: nil, imageOut: &cgImage)
+
+        guard cgImage != nil else {
+            return nil
+        }
+
+        self.init(cgImage: cgImage!)
     }
 }

@@ -41,6 +41,11 @@ class TextRecognitionHandler : ImageHandler {
                     return lang.toString()
                 }
                 
+                blockData["left"] = block.frame.origin.x
+                blockData["top"] = block.frame.origin.y
+                blockData["width"] = block.frame.size.width
+                blockData["height"] = block.frame.size.height
+                
                 var blockLines = [[String:Any]]()
                 
                 for line in block.lines {
@@ -50,6 +55,10 @@ class TextRecognitionHandler : ImageHandler {
                     lineData["languages"] = line.recognizedLanguages.map { lang in
                         return lang.toString()
                     }
+                    lineData["left"] = line.frame.origin.x
+                    lineData["top"] = line.frame.origin.y
+                    lineData["width"] = line.frame.size.width
+                    lineData["height"] = line.frame.size.height
                     
                     var lineElements = [[String:Any]]()
                     
@@ -57,6 +66,10 @@ class TextRecognitionHandler : ImageHandler {
                         var elementData = [String:Any]()
                         
                         elementData["text"] = element.text
+                        elementData["left"] = element.frame.origin.x
+                        elementData["top"] = element.frame.origin.y
+                        elementData["width"] = element.frame.size.width
+                        elementData["height"] = element.frame.size.height
                         
                         lineElements.append(elementData)
                     }

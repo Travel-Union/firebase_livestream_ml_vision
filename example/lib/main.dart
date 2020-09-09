@@ -35,8 +35,8 @@ class _MyAppState extends State<MyApp> {
           Resolution.ultrahd);
       await _controller.initialize();
 
-      //await _controller.addTextRecognizer();
-      await _controller.addBarcodeDetector();
+      await _controller.addTextRecognizer();
+      //await _controller.addBarcodeDetector();
 
       _controller.subscribe().listen((data) {
         if (data != null) {
@@ -76,6 +76,12 @@ class _MyAppState extends State<MyApp> {
               fit: StackFit.expand,
               children: <Widget>[
                 CameraPreview(_controller),
+                FlatButton(
+                  onPressed: () async {
+                    print(await MlKitFlutter.capturePhoto);
+                  },
+                  child: Text("Capture"),
+                ),
               ],
             ),
     );
