@@ -1,3 +1,4 @@
+import 'dart:typed_data';
 import 'dart:ui';
 
 import 'package:firebase_livestream_ml_vision/barcode_detector.dart';
@@ -20,6 +21,8 @@ class MyApp extends StatefulWidget {
 
 class _MyAppState extends State<MyApp> {
   MlKitFlutter _controller;
+
+  GlobalKey cameraViewKey = GlobalKey();
 
   @override
   void initState() {
@@ -83,7 +86,7 @@ class _MyAppState extends State<MyApp> {
           : Stack(
               fit: StackFit.expand,
               children: <Widget>[
-                CameraPreview(_controller),
+                CameraPreview(_controller, cameraViewKey),
                 FloatingActionButton(onPressed: _capturePng, child: Text("Capture"),)
               ],
             ),

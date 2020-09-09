@@ -1,5 +1,3 @@
-import 'dart:ui';
-
 import 'package:firebase_livestream_ml_vision/ml_kit_flutter.dart';
 
 class TextRecognizer {
@@ -27,8 +25,8 @@ class TextRecognizer {
 class VisionText {
   VisionText(Map<String, dynamic> data)
       : text = data['text'],
-        blocks = List<TextBlock>.unmodifiable(
-            data['blocks'].map<TextBlock>((dynamic block) => TextBlock(block)));
+        blocks = List<TextBlock>.unmodifiable(data['blocks']
+            .map<TextBlock>((dynamic block) => TextBlock(block)));
 
   final String text;
   final List<TextBlock> blocks;
@@ -42,15 +40,7 @@ class RecognizedLanguage {
 
 abstract class TextContainer {
   TextContainer(Map<dynamic, dynamic> data)
-      : boundingBox = data['left'] != null
-            ? Rect.fromLTWH(
-                data['left'],
-                data['top'],
-                data['width'],
-                data['height'],
-              )
-            : null,
-        recognizedLanguages = data['languages'] != null
+      : recognizedLanguages = data['languages'] != null
             ? List<RecognizedLanguage>.unmodifiable(
                 data['languages'].map<RecognizedLanguage>(
                   (dynamic language) => RecognizedLanguage(language),
@@ -59,7 +49,6 @@ abstract class TextContainer {
             : [],
         text = data['text'];
 
-  final Rect boundingBox;
   final List<RecognizedLanguage> recognizedLanguages;
   final String text;
 }
