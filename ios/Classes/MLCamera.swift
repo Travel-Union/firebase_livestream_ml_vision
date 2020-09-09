@@ -62,6 +62,7 @@ class MLCamera : NSObject {
     }
     
     func stop() {
+        handlers = []
         captureSession?.stopRunning()
         pixelBuffer = nil
         textureRegistry.unregisterTexture(textureId)
@@ -172,7 +173,7 @@ extension MLCamera: AVCaptureVideoDataOutputSampleBufferDelegate {
             
             DispatchQueue.global(qos: DispatchQoS.QoSClass.utility).async {
                 handler.onImage(image: image) { (result) -> () in
-                    self.eventSink!(result)
+                    self.eventSink?(result)
                 }
             }
         }
