@@ -137,6 +137,7 @@ public class SwiftFirebaseLivestreamMlVisionPlugin: NSObject, FlutterPlugin {
         break
       case "dispose":
         camera?.stop()
+        camera = nil
         result(true)
       default:
           result(FlutterMethodNotImplemented)
