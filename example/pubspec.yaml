@@ -14,6 +14,7 @@ dependencies:
   cupertino_icons: ^0.1.2
   firebase_livestream_ml_vision:
     path: ../
+  firebase_core: ^0.4.0
 
 dev_dependencies:
   flutter_test:

@@ -1,11 +1,7 @@
-import 'dart:typed_data';
-import 'dart:ui';
-
 import 'package:firebase_livestream_ml_vision/barcode_detector.dart';
 import 'package:firebase_livestream_ml_vision/ml_kit_flutter.dart';
 import 'package:firebase_livestream_ml_vision/text_recognizer.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/rendering.dart';
 import 'dart:async';
 
 import 'package:flutter/services.dart';
@@ -21,8 +17,6 @@ class MyApp extends StatefulWidget {
 
 class _MyAppState extends State<MyApp> {
   MlKitFlutter _controller;
-
-  GlobalKey cameraViewKey = GlobalKey();
 
   @override
   void initState() {
@@ -41,8 +35,8 @@ class _MyAppState extends State<MyApp> {
           Resolution.ultrahd);
       await _controller.initialize();
 
-      await _controller.addTextRecognizer();
-      //await _controller.addBarcodeDetector();
+      //await _controller.addTextRecognizer();
+      await _controller.addBarcodeDetector();
 
       _controller.subscribe().listen((data) {
         if (data != null) {
@@ -65,11 +59,6 @@ class _MyAppState extends State<MyApp> {
     setState(() {});
   }
 
-  Future<void> _capturePng() async {
-    final result = await MlKitFlutter.capturePhoto;
-    print(result);
-  }
-
   Widget _buildImage() {
     return Container(
       constraints: const BoxConstraints.expand(),
@@ -86,8 +75,7 @@ class _MyAppState extends State<MyApp> {
           : Stack(
               fit: StackFit.expand,
               children: <Widget>[
-                CameraPreview(_controller, cameraViewKey),
-                FloatingActionButton(onPressed: _capturePng, child: Text("Capture"),)
+                CameraPreview(_controller),
               ],
             ),
     );
