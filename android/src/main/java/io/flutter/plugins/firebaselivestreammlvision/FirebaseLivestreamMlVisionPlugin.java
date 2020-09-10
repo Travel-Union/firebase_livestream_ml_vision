@@ -25,6 +25,7 @@ import android.os.Build;
 import android.os.Handler;
 import android.os.HandlerThread;
 import android.util.Log;
+import android.util.Pair;
 import android.util.Size;
 import android.util.SparseIntArray;
 import android.view.Display;
@@ -211,11 +212,12 @@ public class FirebaseLivestreamMlVisionPlugin implements MethodCallHandler {
     throw (RuntimeException) exception;
   }
 
+  //Ascending
   private static class CompareSizesByArea implements Comparator<Size> {
     @Override
     public int compare(Size lhs, Size rhs) {
       // We cast here to ensure the multiplications won't overflow.
-      return Long.signum((long) rhs.getWidth() * rhs.getHeight() - (long) lhs.getWidth() * lhs.getHeight());
+      return Long.signum((long) lhs.getWidth() * lhs.getHeight() - (long) rhs.getWidth() * rhs.getHeight());
     }
   }
 
@@ -267,7 +269,6 @@ public class FirebaseLivestreamMlVisionPlugin implements MethodCallHandler {
     private int sensorOrientation;
     private boolean isFrontFacing;
     private String cameraName;
-    private Size captureSize;
     private Size previewSize;
     private CaptureRequest.Builder captureRequestBuilder;
     private HandlerThread mBackgroundThread;
@@ -289,20 +290,20 @@ public class FirebaseLivestreamMlVisionPlugin implements MethodCallHandler {
       registerEventChannel();
 
       try {
-        int minHeight;
+        Pair resolution;
         switch (resolutionPreset) {
           case "fullhd":
           case "ultrahd":
-            minHeight = 1080;
+            resolution = new Pair(1920,1080);
             break;
           case "hd":
-            minHeight = 720;
+            resolution = new Pair(1280,720);
             break;
           case "sd":
-            minHeight = 480;
+            resolution = new Pair(640,480);
             break;
           case "potato":
-            minHeight = 240;
+            resolution = new Pair(352,240);
             break;
           default:
             throw new IllegalArgumentException("Unknown preset: " + resolutionPreset);
@@ -317,8 +318,7 @@ public class FirebaseLivestreamMlVisionPlugin implements MethodCallHandler {
         isFrontFacing =
                 characteristics.get(CameraCharacteristics.LENS_FACING)
                         == CameraMetadata.LENS_FACING_FRONT;
-        computeBestCaptureSize(streamConfigurationMap);
-        computeBestPreviewAndRecordingSize(streamConfigurationMap, minHeight, captureSize);
+        computeBestPreviewAndRecordingSize(streamConfigurationMap, resolution);
 
         if (cameraPermissionContinuation != null) {
           result.error("cameraPermission", "Camera permission request ongoing", null);
@@ -385,7 +385,7 @@ public class FirebaseLivestreamMlVisionPlugin implements MethodCallHandler {
     }
 
     private void computeBestPreviewAndRecordingSize(
-            StreamConfigurationMap streamConfigurationMap, int minHeight, Size captureSize) {
+            StreamConfigurationMap streamConfigurationMap, Pair<Integer, Integer> resolution) {
       Size[] sizes = streamConfigurationMap.getOutputSizes(SurfaceTexture.class);
 
       // Preview size and video size should not be greater than screen resolution or 1080.
@@ -399,48 +399,28 @@ public class FirebaseLivestreamMlVisionPlugin implements MethodCallHandler {
       Display display = activity.getWindowManager().getDefaultDisplay();
       display.getRealSize(screenResolution);
 
-      final boolean swapWH = getMediaOrientation() % 180 == 90;
-      int screenWidth = swapWH ? screenResolution.y : screenResolution.x;
-      int screenHeight = swapWH ? screenResolution.x : screenResolution.y;
+      float resolutionPixels = resolution.first * resolution.second;
+      Size size = null;
 
-      List<Size> goodEnough = new ArrayList<>();
       List<Size> sizeList = new ArrayList<>();
       for (Size s : sizes) {
-        if (minHeight <= s.getHeight()
-                && s.getWidth() <= screenWidth
-                && s.getHeight() <= screenHeight
-                && s.getHeight() <= 1080) {
-          goodEnough.add(s);
+        float sizePixels = s.getHeight() * s.getWidth();
+        if (resolutionPixels <= sizePixels) {
+          if(size == null) {
+            size = s;
+          } else {
+            float currentSizePixes = size.getHeight() * size.getWidth();
+            size = sizePixels - resolutionPixels < currentSizePixes - resolutionPixels ? s : size;
+          }
         }
         sizeList.add(s);
       }
 
-      Collections.sort(goodEnough, new CompareSizesByArea());
-
-      if (goodEnough.isEmpty()) {
-        Collections.sort(sizeList, new CompareSizesByArea());
+      if (size == null) {
         previewSize = sizeList.get(0);
       } else {
-        float captureSizeRatio = (float) captureSize.getWidth() / captureSize.getHeight();
-
-        previewSize = goodEnough.get(0);
-        for (Size s : goodEnough) {
-          if ((float) s.getWidth() / s.getHeight() == captureSizeRatio) {
-            previewSize = s;
-            break;
-          }
-        }
-
-        Collections.reverse(goodEnough);
+        previewSize = size;
       }
-    }
-
-    private void computeBestCaptureSize(StreamConfigurationMap streamConfigurationMap) {
-      // For still image captures, we use the largest available size.
-      captureSize =
-              Collections.max(
-                      Arrays.asList(streamConfigurationMap.getOutputSizes(ImageFormat.JPEG)),
-                      new CompareSizesByArea());
     }
 
     /** Starts a background thread and its {@link Handler}. */
